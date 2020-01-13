@@ -54,7 +54,7 @@ class KittiParser {
   static const std::string kDataFolder;
 
   KittiParser(const std::string& calibration_path,
-              const std::string& dataset_path, bool rectified);
+              const std::string& dataset_path, bool rectified, bool pykitti_behaviour);
 
   // MAIN API: all you should need to use!
   // Loading calibration files.
@@ -93,6 +93,7 @@ class KittiParser {
   Transformation T_vel_imu() const;
 
   size_t getNumCameras() const;
+  size_t getNumTimestamps() const{return timestamps_pose_ns_.size();}
 
  private:
   bool loadCamToCamCalibration();
@@ -138,6 +139,9 @@ class KittiParser {
   bool initial_pose_set_;
   Transformation T_initial_pose_;
   double mercator_scale_;
+
+  // treat timestamps like PyKITTI does (one for all)
+  bool pykitti_behaviour_;
 };
 }
 

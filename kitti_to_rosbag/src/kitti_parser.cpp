@@ -52,10 +52,11 @@ const std::string KittiParser::kTimestampFilename = "timestamps.txt";
 const std::string KittiParser::kDataFolder = "data";
 
 KittiParser::KittiParser(const std::string& calibration_path,
-                         const std::string& dataset_path, bool rectified)
+                         const std::string& dataset_path, bool rectified, bool pykitti_behaviour)
     : calibration_path_(calibration_path),
       dataset_path_(dataset_path),
       rectified_(rectified),
+      pykitti_behaviour_(pykitti_behaviour),
       initial_pose_set_(false) {}
 
 bool KittiParser::loadCalibration() {
@@ -421,7 +422,9 @@ bool KittiParser::getPoseAtEntry(uint64_t entry, uint64_t* timestamp,
   if (timestamps_pose_ns_.size() <= entry) {
     return false;
   }
-  *timestamp = timestamps_pose_ns_[entry];
+
+  // poses and color cam have same timestamp (just like when using pykitti)
+  *timestamp = pykitti_behaviour_ ? timestamps_cam_ns_[2][entry] : timestamps_pose_ns_[entry];
 
   std::string line;
   std::vector<double> parsed_doubles;
@@ -535,18 +538,23 @@ bool KittiParser::convertGpsToPose(const std::vector<double>& oxts,
 
   Transformation transform(position, rotation);
 
+  // Eigen::Matrix3d r = rotation.toRotationMatrix();
   // Undo the initial transformation, if one is set.
   // If not, set it.
   // The transformation only undoes translation and yaw, not roll and pitch
   // (as these are observable from the gravity vector).
   if (!initial_pose_set_) {
     T_initial_pose_.getPosition() = transform.getPosition();
-    T_initial_pose_.getRotation() = Rotation(axis_yaw);
+    // pykitti behaviour is to not undo the yaw rotation
+    if (!pykitti_behaviour_)
+        T_initial_pose_.getRotation() = Rotation(axis_yaw);         //type is kindr::minimal::RotationQuaternion
     initial_pose_set_ = true;
   }
   // Get back to local coordinates.
   *pose = T_initial_pose_.inverse() * transform;
 
+  // used for r2 debugging
+  // Eigen::Matrix3d r2 = pose->getRotation().getRotationMatrix();
   return true;
 }
 

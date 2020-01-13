@@ -41,7 +41,8 @@ class KittiBagConverter {
  public:
   KittiBagConverter(const std::string& calibration_path,
                     const std::string& dataset_path,
-                    const std::string& output_filename);
+                    const std::string& output_filename,
+                    const bool& pykitti_behaviour);
 
   void convertAll();
   bool convertEntry(uint64_t entry);
@@ -64,8 +65,9 @@ class KittiBagConverter {
 
 KittiBagConverter::KittiBagConverter(const std::string& calibration_path,
                                      const std::string& dataset_path,
-                                     const std::string& output_filename)
-    : parser_(calibration_path, dataset_path, true),
+                                     const std::string& output_filename,
+                                     const bool& pykitti_behaviour)
+    : parser_(calibration_path, dataset_path, true, pykitti_behaviour),
       world_frame_id_("world"),
       imu_frame_id_("imu"),
       cam_frame_id_prefix_("cam"),
@@ -211,9 +213,10 @@ int main(int argc, char** argv) {
   const std::string calibration_path = argv[1];
   const std::string dataset_path = argv[2];
   const std::string output_path = argv[3];
+  const bool pykitti_behaviour = atoi(argv[4]);
 
   kitti::KittiBagConverter converter(calibration_path, dataset_path,
-                                     output_path);
+                                     output_path, pykitti_behaviour);
   converter.convertAll();
 
   return 0;
