@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pcl_ros/point_cloud.h>
 #include <rosbag/bag.h>
 #include <tf/tfMessage.h>
+#include <chrono>
 
 #include "kitti_to_rosbag/kitti_parser.h"
 #include "kitti_to_rosbag/kitti_ros_conversions.h"
@@ -61,6 +62,9 @@ class KittiBagConverter {
   std::string pose_topic_;
   std::string transform_topic_;
   std::string pointcloud_topic_;
+
+  std::chrono::steady_clock::time_point begin_;
+  std::chrono::steady_clock::time_point current_;
 };
 
 KittiBagConverter::KittiBagConverter(const std::string& calibration_path,
@@ -83,11 +87,16 @@ KittiBagConverter::KittiBagConverter(const std::string& calibration_path,
 }
 
 void KittiBagConverter::convertAll() {
-  uint64_t entry = 0;
-  while (convertEntry(entry)) {
-    entry++;
-  }
-  std::cout << "Converted " << entry << " entries into a rosbag.\n";
+    uint64_t entry = 0;
+    size_t num_files = parser_.getNumTimestamps();
+    begin_ = std::chrono::steady_clock::now();
+    while (convertEntry(entry)) {
+        entry++;
+        current_ = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::minutes>((current_ - begin_) * (num_files - entry)/entry).count();
+        std::cout << entry << "/" << num_files << " (about " << elapsed << " minutes left).\t\r"<< std::flush;
+    }
+    std::cout << "Converted " << entry << " entries into a rosbag.\n";
 }
 
 bool KittiBagConverter::convertEntry(uint64_t entry) {
@@ -126,6 +135,7 @@ bool KittiBagConverter::convertEntry(uint64_t entry) {
       sensor_msgs::Image image_msg;
       imageToRos(image, &image_msg);
       image_msg.header.stamp = timestamp_ros;
+      image_msg.header.seq = entry;
       image_msg.header.frame_id = getCameraFrameId(cam_id);
 
       // TODO(helenol): cache this.
@@ -219,5 +229,6 @@ int main(int argc, char** argv) {
                                      output_path, pykitti_behaviour);
   converter.convertAll();
 
+  std::cout << "Done" << std::endl;
   return 0;
 }
